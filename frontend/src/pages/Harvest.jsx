@@ -1,3 +1,5 @@
+// frontend/src/pages/Harvest.jsx (FIXED - variable order)
+
 import React, { useState, useEffect } from 'react';
 import { 
   FaArrowLeft,
@@ -19,6 +21,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import api from '../services/api';
 
 const Harvest = () => {
   const [notifications] = useState(2);
@@ -28,6 +31,12 @@ const Harvest = () => {
     location: 'Dindori Taluka, Nashik',
     farmSize: '12.5 acres'
   });
+  
+  // State for API data
+  const [priceData, setPriceData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [harvestAdvice, setHarvestAdvice] = useState(null);
   
   const { t, language } = useLanguage();
   const navigate = useNavigate();
@@ -39,7 +48,7 @@ const Harvest = () => {
   const goToHarvest = () => navigate('/harvest');
   const goToProfile = () => navigate('/profile');
 
-  // EXPANDED CROPS LIST - 10+ crops
+  // CROPS LIST
   const crops = [
     { id: 'grapes', name: 'Grapes', icon: '🍇', nameMr: 'द्राक्षे', nameHi: 'अंगूर' },
     { id: 'onions', name: 'Onions', icon: '🧅', nameMr: 'कांदे', nameHi: 'प्याज' },
@@ -55,8 +64,8 @@ const Harvest = () => {
     { id: 'soybean', name: 'Soybean', icon: '🌱', nameMr: 'सोयाबीन', nameHi: 'सोयाबीन' }
   ];
 
-  // Price data for ALL crops
-  const priceData = {
+  // Mock data functions (fallback) - MUST BE DEFINED BEFORE USE
+  const getMockPriceData = () => ({
     grapes: {
       current: 4500,
       trend: 'up',
@@ -237,7 +246,65 @@ const Harvest = () => {
       ],
       recommendation: { action: 'wait', days: 4, expectedPrice: 4300, reason: 'Prices rising steadily' }
     }
+  });
+
+  const getMockHarvestAdvice = (crop) => {
+    const mockData = getMockPriceData();
+    const cropData = mockData[crop] || mockData.grapes;
+    return {
+      advice: cropData.recommendation.action === 'sell' ? 'Good time to sell' : 'Wait for better prices',
+      bestTime: cropData.recommendation.action === 'sell' ? 'Today' : 'Next 3-5 days',
+      confidence: 'Medium',
+      currentPrice: cropData.current,
+      avgPrice: Math.round(cropData.weeklyTrend.reduce((sum, day) => sum + day.price, 0) / 7),
+      trend: cropData.trend,
+      momentum: cropData.change,
+      priceDifference: 0,
+      percentageDiff: cropData.change.toString(),
+      marketOutlook: 'Stable',
+      storageAdvice: 'No urgent need for storage'
+    };
   };
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Try to fetch real data from API
+      try {
+        const allPrices = await api.mandi.getAllPrices();
+        setPriceData(allPrices);
+      } catch (priceErr) {
+        console.warn('Could not fetch mandi prices, using mock data:', priceErr);
+        setPriceData(getMockPriceData());
+      }
+      
+      // Try to get harvest advice for selected crop
+      try {
+        const advice = await api.recommendations.getHarvestAdvice(selectedCrop);
+        setHarvestAdvice(advice);
+      } catch (adviceErr) {
+        console.warn('Could not fetch harvest advice, using mock:', adviceErr);
+        setHarvestAdvice(getMockHarvestAdvice(selectedCrop));
+      }
+      
+    } catch (err) {
+      console.error('Error in data fetching:', err);
+      setError('Failed to load market data. Using sample data instead.');
+      
+      // Fallback to mock data if API fails
+      setPriceData(getMockPriceData());
+      setHarvestAdvice(getMockHarvestAdvice(selectedCrop));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data when component loads or crop changes
+  useEffect(() => {
+    fetchAllData();
+  }, [selectedCrop]);
 
   const getCropName = (id) => {
     const crop = crops.find(c => c.id === id);
@@ -253,10 +320,58 @@ const Harvest = () => {
     return en;
   };
 
-  const currentCropData = priceData[selectedCrop];
+  // Get location from profile
+  const userLocation = userData.location.split(',')[0];
 
-  // Get location from profile (in real app, this would come from context/API)
-  const userLocation = userData.location.split(',')[0]; // Gets "Dindori"
+  // Safe data access with fallbacks - DEFINED AFTER ALL FUNCTIONS ARE DECLARED
+  const mockData = getMockPriceData();
+  const currentCropData = priceData[selectedCrop] || mockData[selectedCrop] || mockData.grapes;
+  
+  // Ensure all required properties exist with fallbacks
+  const safeCropData = {
+    current: currentCropData?.current || 0,
+    trend: currentCropData?.trend || 'stable',
+    change: currentCropData?.change || 0,
+    markets: currentCropData?.markets || mockData.grapes.markets,
+    weeklyTrend: currentCropData?.weeklyTrend || mockData.grapes.weeklyTrend,
+    recommendation: currentCropData?.recommendation || {
+      action: 'wait',
+      days: 0,
+      expectedPrice: currentCropData?.current || 0,
+      reason: 'Data unavailable'
+    }
+  };
+
+  const currentAdvice = harvestAdvice || getMockHarvestAdvice(selectedCrop);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#F5F9F6] to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B5E20] mx-auto mb-4"></div>
+          <p className="text-[#263238]">Loading market data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#F5F9F6] to-white flex items-center justify-center">
+        <div className="text-center bg-red-50 p-6 rounded-xl max-w-md">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchAllData}
+            className="bg-[#1B5E20] text-white px-4 py-2 rounded-lg hover:bg-[#2E7D32] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F5F9F6] to-white">
@@ -310,13 +425,12 @@ const Harvest = () => {
             </h1>
           </div>
           
-          {/* Location from Profile */}
           <div className="bg-[#E8F0E8] px-4 py-2 rounded-full text-sm font-medium text-[#1B5E20]">
             📍 {userLocation}
           </div>
         </div>
 
-        {/* Crop Selection Grid - All crops visible */}
+        {/* Crop Selection Grid */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-[#263238] mb-3">
             {getText('Select Crop', 'पीक निवडा', 'फसल चुनें')}
@@ -340,7 +454,7 @@ const Harvest = () => {
           </div>
         </div>
 
-        {/* FEATURE 1: Daily Mandi Price Cards - Shows ALL crops */}
+        {/* FEATURE 1: Daily Mandi Price Cards */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
           <h2 className="text-lg font-bold text-[#263238] mb-4 flex items-center gap-2">
             <FaTags className="text-[#1B5E20]" />
@@ -349,7 +463,7 @@ const Harvest = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {crops.map(crop => {
-              const data = priceData[crop.id];
+              const data = priceData[crop.id] || mockData[crop.id] || mockData.grapes;
               return (
                 <div 
                   key={crop.id} 
@@ -370,16 +484,16 @@ const Harvest = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-[#263238]">₹{data.current}</p>
+                      <p className="text-lg font-bold text-[#263238]">₹{data?.current || 0}</p>
                       <p className={`text-xs flex items-center gap-1 justify-end ${
-                        data.trend === 'up' ? 'text-green-600' :
-                        data.trend === 'down' ? 'text-red-600' :
+                        data?.trend === 'up' ? 'text-green-600' :
+                        data?.trend === 'down' ? 'text-red-600' :
                         'text-gray-600'
                       }`}>
-                        {data.trend === 'up' && <FaArrowUp />}
-                        {data.trend === 'down' && <FaArrowDown />}
-                        {data.trend === 'stable' && <FaMinus />}
-                        {data.change}%
+                        {data?.trend === 'up' && <FaArrowUp />}
+                        {data?.trend === 'down' && <FaArrowDown />}
+                        {data?.trend === 'stable' && <FaMinus />}
+                        {data?.change || 0}%
                       </p>
                     </div>
                   </div>
@@ -389,16 +503,20 @@ const Harvest = () => {
           </div>
         </div>
 
-        {/* FEATURE 2: 7-Day Price Trend Chart - For selected crop */}
+        {/* FEATURE 2: 7-Day Price Trend Chart - FIXED */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
           <h2 className="text-lg font-bold text-[#263238] mb-4 flex items-center gap-2">
             <FaChartLine className="text-[#1B5E20]" />
             {getText('7-Day Price Trend', '७ दिवसांचा किंमत ट्रेंड', '७ दिन का मूल्य रुझान')} - {getCropName(selectedCrop)}
           </h2>
           
-          <div className="h-64">
+          {/* FIXED: Added minHeight and width: 100% */}
+          <div style={{ width: '100%', height: '300px', minHeight: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={currentCropData.weeklyTrend}>
+              <LineChart 
+                data={safeCropData.weeklyTrend}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
                 <XAxis dataKey="day" tick={{ fill: '#546E7A', fontSize: 12 }} />
                 <YAxis tick={{ fill: '#546E7A', fontSize: 12 }} />
@@ -426,31 +544,32 @@ const Harvest = () => {
           <div className="bg-white/10 rounded-xl p-5">
             <div className="text-center mb-4">
               <p className="text-3xl font-bold mb-2">
-                {currentCropData.recommendation.action === 'sell' && '✅ ' + getText('SELL NOW', 'आता विका', 'अभी बेचें')}
-                {currentCropData.recommendation.action === 'wait' && `⏳ ${getText('WAIT', 'प्रतीक्षा करा', 'प्रतीक्षा करें')} ${currentCropData.recommendation.days} ${getText('days', 'दिवस', 'दिन')}`}
-                {currentCropData.recommendation.action === 'sellNow' && '⚠️ ' + getText('SELL NOW', 'आता विका', 'अभी बेचें')}
+                {safeCropData.recommendation.action === 'sell' && '✅ ' + getText('SELL NOW', 'आता विका', 'अभी बेचें')}
+                {safeCropData.recommendation.action === 'wait' && `⏳ ${getText('WAIT', 'प्रतीक्षा करा', 'प्रतीक्षा करें')} ${safeCropData.recommendation.days} ${getText('days', 'दिवस', 'दिन')}`}
+                {safeCropData.recommendation.action === 'sellNow' && '⚠️ ' + getText('SELL NOW', 'आता विका', 'अभी बेचें')}
+                {!['sell', 'wait', 'sellNow'].includes(safeCropData.recommendation.action) && '📊 ' + getText('CHECK PRICES', 'किंमत तपासा', 'कीमत जांचें')}
               </p>
               <p className="text-white/90">
-                {getText('Expected Price', 'अपेक्षित किंमत', 'अपेक्षित कीमत')}: ₹{currentCropData.recommendation.expectedPrice}
+                {getText('Expected Price', 'अपेक्षित किंमत', 'अपेक्षित कीमत')}: ₹{safeCropData.recommendation.expectedPrice || safeCropData.current}
               </p>
               <p className="text-sm text-white/80 mt-2">
-                {currentCropData.recommendation.reason}
+                {safeCropData.recommendation.reason || 'Market data being analyzed'}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white/10 rounded-lg p-3">
                 <p className="text-xs opacity-80">{getText('Current Price', 'सध्याची किंमत', 'वर्तमान कीमत')}</p>
-                <p className="text-lg font-semibold">₹{currentCropData.current}</p>
+                <p className="text-lg font-semibold">₹{safeCropData.current}</p>
               </div>
               <div className="bg-white/10 rounded-lg p-3">
                 <p className="text-xs opacity-80">{getText('Change', 'बदल', 'बदलाव')}</p>
                 <p className={`text-lg font-semibold ${
-                  currentCropData.trend === 'up' ? 'text-green-300' :
-                  currentCropData.trend === 'down' ? 'text-red-300' :
+                  safeCropData.trend === 'up' ? 'text-green-300' :
+                  safeCropData.trend === 'down' ? 'text-red-300' :
                   'text-white'
                 }`}>
-                  {currentCropData.change}%
+                  {safeCropData.change}%
                 </p>
               </div>
             </div>
@@ -474,7 +593,7 @@ const Harvest = () => {
                 </tr>
               </thead>
               <tbody>
-                {currentCropData.markets.map((market, idx) => (
+                {safeCropData.markets.map((market, idx) => (
                   <tr key={idx} className="border-b border-gray-100 last:border-0">
                     <td className="py-3 text-[#263238] font-medium">{market.name}</td>
                     <td className="py-3 text-right font-semibold text-[#263238]">₹{market.price}</td>

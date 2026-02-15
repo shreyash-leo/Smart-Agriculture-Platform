@@ -1,3 +1,4 @@
+// frontend/src/pages/Profile.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   FaBell, 
@@ -20,47 +21,81 @@ import {
   FaHome,
   FaSeedling,
   FaWater,
-  FaShoppingCart
+  FaShoppingCart,
+  FaSpinner
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { profileAPI } from '../services/api';
 
 const Profile = () => {
   const [notifications] = useState(2);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const { t, language, changeLanguage } = useLanguage();
   const navigate = useNavigate();
 
-  // Sample user data
+  // User data state
   const [userData, setUserData] = useState({
     photo: null,
-    name: 'John Farmer',
-    mobile: '+91 98765 43210',
-    email: 'john.farmer@agrismart.com',
-    location: 'Dindori Taluka, Nashik',
-    farmSize: '12.5 acres',
-    memberSince: 'January 2026'
+    name: '',
+    mobile: '',
+    email: '',
+    location: '',
+    farmSize: '',
+    language: 'en',
+    memberSince: ''
   });
 
-  // Navigation functions
-  const goToHome = () => navigate('/');
-  const goToPlanting = () => navigate('/planting');
-  const goToIrrigation = () => navigate('/irrigation');
-  const goToHarvest = () => navigate('/harvest');
-  const goToProfile = () => navigate('/profile');
-
-  // FIX: Add state for language display
-  const [displayLanguage, setDisplayLanguage] = useState('');
-
-  // FIX: Update display language whenever context language changes
+  // Fetch profile data on component mount
   useEffect(() => {
-    if (language === 'en') setDisplayLanguage('English (EN)');
-    else if (language === 'hi') setDisplayLanguage('हिन्दी (HI)');
-    else if (language === 'mr') setDisplayLanguage('मराठी (MR)');
-  }, [language]);
+    fetchProfile();
+  }, []);
 
-  const handleEdit = () => {
-    setIsEditing(!isEditing);
+  // Update display language when userData.language changes
+  useEffect(() => {
+    if (userData.language && userData.language !== language) {
+      changeLanguage(userData.language);
+    }
+  }, [userData.language, changeLanguage, language]);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await profileAPI.getProfile();
+      setUserData(data);
+    } catch (err) {
+      setError('Failed to load profile. Please try again.');
+      console.error('Error fetching profile:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      const updatedProfile = await profileAPI.updateProfile(userData);
+      setUserData(updatedProfile.profile);
+      setIsEditing(false);
+      // Show success message (you can add a toast notification here)
+      alert('Profile updated successfully!');
+    } catch (err) {
+      setError('Failed to update profile. Please try again.');
+      console.error('Error updating profile:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset to original data by refetching
+    fetchProfile();
+    setIsEditing(false);
   };
 
   const handleLogout = () => {
@@ -71,16 +106,42 @@ const Profile = () => {
     alert(t('changePassword'));
   };
 
-  // FIX: Simplified language change handler
+  // Get display language text
+  const getDisplayLanguage = (langCode) => {
+    if (langCode === 'en') return 'English (EN)';
+    if (langCode === 'hi') return 'हिन्दी (HI)';
+    if (langCode === 'mr') return 'मराठी (MR)';
+    return 'English (EN)';
+  };
+
+  // Handle language change in edit mode
   const handleLanguageChange = (e) => {
     const selectedValue = e.target.value;
-    setDisplayLanguage(selectedValue);
+    let langCode = 'en';
+    if (selectedValue === 'English (EN)') langCode = 'en';
+    else if (selectedValue === 'हिन्दी (HI)') langCode = 'hi';
+    else if (selectedValue === 'मराठी (MR)') langCode = 'mr';
     
-    // Change global language based on selection
-    if (selectedValue === 'English (EN)') changeLanguage('en');
-    else if (selectedValue === 'हिन्दी (HI)') changeLanguage('hi');
-    else if (selectedValue === 'मराठी (MR)') changeLanguage('mr');
+    setUserData({...userData, language: langCode});
   };
+
+  // Navigation functions
+  const goToHome = () => navigate('/');
+  const goToPlanting = () => navigate('/planting');
+  const goToIrrigation = () => navigate('/irrigation');
+  const goToHarvest = () => navigate('/harvest');
+  const goToProfile = () => navigate('/profile');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#F5F9F6] to-white flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin text-4xl text-[#1B5E20] mx-auto mb-4" />
+          <p className="text-[#263238]">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F5F9F6] to-white">
@@ -99,7 +160,7 @@ const Profile = () => {
               <span className="text-xl font-bold text-[#263238]">{t('agriSmart')}</span>
             </div>
 
-            {/* Navigation - Updated with Planting, Irrigation, Harvesting */}
+            {/* Navigation */}
             <div className="hidden md:flex items-center gap-8">
               <a 
                 href="#" 
@@ -160,6 +221,13 @@ const Profile = () => {
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
         {/* Profile Header */}
         <div className="relative bg-gradient-to-r from-[#1B5E20] to-[#4CAF50] rounded-2xl shadow-xl overflow-hidden mb-6">
           <div className="absolute inset-0 opacity-10">
@@ -184,22 +252,25 @@ const Profile = () => {
                   )}
                 </div>
               </div>
-              <button className="absolute bottom-0 right-0 bg-[#FBC02D] p-2 rounded-full text-[#263238] opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                <FaCamera className="text-sm" />
-              </button>
+              {isEditing && (
+                <button className="absolute bottom-0 right-0 bg-[#FBC02D] p-2 rounded-full text-[#263238] shadow-lg">
+                  <FaCamera className="text-sm" />
+                </button>
+              )}
             </div>
             
             <div className="flex-1">
-              <h1 className="text-2xl font-bold mb-1">{userData.name}</h1>
+              <h1 className="text-2xl font-bold mb-1">{userData.name || 'John Farmer'}</h1>
               <p className="text-white/90 text-sm flex items-center gap-2">
                 <FaLeaf className="text-[#FBC02D]" />
-                {t('memberSince')} {userData.memberSince}
+                {t('memberSince')} {userData.memberSince || 'January 2026'}
               </p>
             </div>
 
             <button 
-              onClick={handleEdit}
-              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all backdrop-blur-sm"
+              onClick={() => setIsEditing(!isEditing)}
+              disabled={saving}
+              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaEdit />
               {isEditing ? t('cancel') : t('editProfile')}
@@ -224,12 +295,13 @@ const Profile = () => {
                   {isEditing ? (
                     <input 
                       type="text" 
-                      value={userData.name}
+                      value={userData.name || ''}
                       onChange={(e) => setUserData({...userData, name: e.target.value})}
                       className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#1B5E20]"
+                      placeholder="Enter your name"
                     />
                   ) : (
-                    <p className="font-medium text-[#263238]">{userData.name}</p>
+                    <p className="font-medium text-[#263238]">{userData.name || 'Not provided'}</p>
                   )}
                 </div>
               </div>
@@ -241,12 +313,13 @@ const Profile = () => {
                   {isEditing ? (
                     <input 
                       type="tel" 
-                      value={userData.mobile}
+                      value={userData.mobile || ''}
                       onChange={(e) => setUserData({...userData, mobile: e.target.value})}
                       className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#1B5E20]"
+                      placeholder="Enter mobile number"
                     />
                   ) : (
-                    <p className="font-medium text-[#263238]">{userData.mobile}</p>
+                    <p className="font-medium text-[#263238]">{userData.mobile || 'Not provided'}</p>
                   )}
                 </div>
               </div>
@@ -258,12 +331,13 @@ const Profile = () => {
                   {isEditing ? (
                     <input 
                       type="email" 
-                      value={userData.email}
+                      value={userData.email || ''}
                       onChange={(e) => setUserData({...userData, email: e.target.value})}
                       className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#1B5E20]"
+                      placeholder="Enter email address"
                     />
                   ) : (
-                    <p className="font-medium text-[#263238]">{userData.email}</p>
+                    <p className="font-medium text-[#263238]">{userData.email || 'Not provided'}</p>
                   )}
                 </div>
               </div>
@@ -285,24 +359,25 @@ const Profile = () => {
                   {isEditing ? (
                     <input 
                       type="text" 
-                      value={userData.location}
+                      value={userData.location || ''}
                       onChange={(e) => setUserData({...userData, location: e.target.value})}
                       className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#1B5E20]"
+                      placeholder="Enter location"
                     />
                   ) : (
-                    <p className="font-medium text-[#263238]">{userData.location}</p>
+                    <p className="font-medium text-[#263238]">{userData.location || 'Not provided'}</p>
                   )}
                 </div>
               </div>
 
-              {/* Language Selector - FIXED */}
+              {/* Language Selector */}
               <div className="flex items-start gap-3">
                 <FaLanguage className="text-[#1B5E20] text-xl mt-1" />
                 <div className="flex-1">
                   <p className="text-sm text-[#546E7A]">{t('preferredLanguage')}</p>
                   {isEditing ? (
                     <select 
-                      value={displayLanguage}
+                      value={getDisplayLanguage(userData.language)}
                       onChange={handleLanguageChange}
                       className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#1B5E20]"
                     >
@@ -311,7 +386,7 @@ const Profile = () => {
                       <option value="हिन्दी (HI)">हिन्दी (HI)</option>
                     </select>
                   ) : (
-                    <p className="font-medium text-[#263238]">{displayLanguage}</p>
+                    <p className="font-medium text-[#263238]">{getDisplayLanguage(userData.language)}</p>
                   )}
                 </div>
               </div>
@@ -323,12 +398,13 @@ const Profile = () => {
                   {isEditing ? (
                     <input 
                       type="text" 
-                      value={userData.farmSize}
+                      value={userData.farmSize || ''}
                       onChange={(e) => setUserData({...userData, farmSize: e.target.value})}
                       className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#1B5E20]"
+                      placeholder="Enter farm size"
                     />
                   ) : (
-                    <p className="font-medium text-[#263238]">{userData.farmSize}</p>
+                    <p className="font-medium text-[#263238]">{userData.farmSize || 'Not provided'}</p>
                   )}
                 </div>
               </div>
@@ -382,17 +458,19 @@ const Profile = () => {
         {isEditing && (
           <div className="flex justify-end gap-4 mt-6">
             <button 
-              onClick={() => setIsEditing(false)}
-              className="px-6 py-3 border border-gray-200 rounded-xl font-medium text-[#546E7A] hover:bg-gray-50 transition-colors"
+              onClick={handleCancel}
+              disabled={saving}
+              className="px-6 py-3 border border-gray-200 rounded-xl font-medium text-[#546E7A] hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               {t('cancel')}
             </button>
             <button 
-              onClick={() => setIsEditing(false)}
-              className="px-6 py-3 bg-[#1B5E20] text-white rounded-xl font-medium hover:bg-[#2E7D32] transition-colors shadow-lg flex items-center gap-2"
+              onClick={handleSaveChanges}
+              disabled={saving}
+              className="px-6 py-3 bg-[#1B5E20] text-white rounded-xl font-medium hover:bg-[#2E7D32] transition-colors shadow-lg flex items-center gap-2 disabled:opacity-50"
             >
-              <FaEdit />
-              {t('saveChanges')}
+              {saving ? <FaSpinner className="animate-spin" /> : <FaEdit />}
+              {saving ? 'Saving...' : t('saveChanges')}
             </button>
           </div>
         )}
