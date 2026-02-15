@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext'; // ADD THIS
+import { useLanguage } from '../context/LanguageContext';
 import { 
   FaBell, 
   FaSeedling, 
@@ -25,7 +25,7 @@ import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Cart
 
 const Home = () => {
   const [notifications] = useState(3);
-  const { t, language } = useLanguage(); // ADD THIS
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
 
   const goToProfile = () => {
@@ -40,8 +40,12 @@ const Home = () => {
     navigate('/irrigation');
   };
 
-  const goToHarvesting = () => {
-    navigate('/harvesting');
+  const goToHarvest = () => {
+    navigate('/harvest');
+  };
+
+  const goToHome = () => {
+    navigate('/');
   };
 
   // Weather data with translations
@@ -99,7 +103,7 @@ const Home = () => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div 
-              onClick={() => navigate('/')}
+              onClick={goToHome}
               className="flex items-center gap-2 cursor-pointer"
             >
               <div className="bg-[#1B5E20] p-2 rounded-xl shadow-lg">
@@ -108,11 +112,11 @@ const Home = () => {
               <span className="text-xl font-bold text-[#263238]">{t('agriSmart')}</span>
             </div>
 
-            {/* Navigation - Updated with Planting, Irrigation, Harvesting */}
+            {/* Navigation */}
             <div className="hidden md:flex items-center gap-8">
               <a 
                 href="#" 
-                onClick={(e) => { e.preventDefault(); navigate('/'); }}
+                onClick={(e) => { e.preventDefault(); goToHome(); }}
                 className="text-[#263238] font-medium hover:text-[#1B5E20] transition-colors border-b-2 border-[#1B5E20] pb-1"
               >
                 <FaHome className="inline mr-1" /> {t('home')}
@@ -133,7 +137,7 @@ const Home = () => {
               </a>
               <a 
                 href="#" 
-                onClick={(e) => { e.preventDefault(); goToHarvesting(); }}
+                onClick={(e) => { e.preventDefault(); goToHarvest(); }}
                 className="text-[#546E7A] hover:text-[#1B5E20] transition-colors flex items-center gap-1"
               >
                 <FaShoppingCart /> {t('harvestingUpdates')}
@@ -248,7 +252,7 @@ const Home = () => {
             <h3 className="text-xl font-bold text-[#263238] mb-2">{t('harvestingUpdates')}</h3>
             <p className="text-[#546E7A] text-sm mb-4">{t('cropMaturity')}</p>
             <button 
-              onClick={goToHarvesting}
+              onClick={goToHarvest}
               className="text-[#1B5E20] font-medium flex items-center gap-2 hover:gap-3 transition-all"
             >
               {t('checkYield')} <FaChevronRight className="text-xs" />
@@ -373,7 +377,7 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer - UPDATED with working links and removed Market */}
         <footer className="border-t border-gray-200 pt-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* About */}
@@ -384,16 +388,40 @@ const Home = () => {
               </p>
             </div>
 
-            {/* Quick Links */}
+            {/* Quick Links - UPDATED with working navigation */}
             <div>
               <h3 className="font-bold text-[#263238] mb-3">{t('quickLinks')}</h3>
               <ul className="space-y-2 text-sm text-[#546E7A]">
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('home')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('plantingInsights')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('irrigationControl')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('harvestingUpdates')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('market')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('profile')}</li>
+                <li 
+                  onClick={goToHome}
+                  className="hover:text-[#1B5E20] cursor-pointer transition-colors"
+                >
+                  {t('home')}
+                </li>
+                <li 
+                  onClick={goToPlanting}
+                  className="hover:text-[#1B5E20] cursor-pointer transition-colors"
+                >
+                  {t('plantingInsights')}
+                </li>
+                <li 
+                  onClick={goToIrrigation}
+                  className="hover:text-[#1B5E20] cursor-pointer transition-colors"
+                >
+                  {t('irrigationControl')}
+                </li>
+                <li 
+                  onClick={goToHarvest}
+                  className="hover:text-[#1B5E20] cursor-pointer transition-colors"
+                >
+                  {t('harvestingUpdates')}
+                </li>
+                <li 
+                  onClick={goToProfile}
+                  className="hover:text-[#1B5E20] cursor-pointer transition-colors"
+                >
+                  {t('profile')}
+                </li>
               </ul>
             </div>
 
@@ -401,10 +429,10 @@ const Home = () => {
             <div>
               <h3 className="font-bold text-[#263238] mb-3">{t('support')}</h3>
               <ul className="space-y-2 text-sm text-[#546E7A]">
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('contactUs')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('faq')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('privacyPolicy')}</li>
-                <li className="hover:text-[#1B5E20] cursor-pointer">{t('termsOfService')}</li>
+                <li className="hover:text-[#1B5E20] cursor-pointer transition-colors">{t('contactUs')}</li>
+                <li className="hover:text-[#1B5E20] cursor-pointer transition-colors">{t('faq')}</li>
+                <li className="hover:text-[#1B5E20] cursor-pointer transition-colors">{t('privacyPolicy')}</li>
+                <li className="hover:text-[#1B5E20] cursor-pointer transition-colors">{t('termsOfService')}</li>
               </ul>
             </div>
 

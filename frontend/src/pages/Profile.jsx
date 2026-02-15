@@ -16,7 +16,11 @@ import {
   FaSignOutAlt,
   FaEdit,
   FaCamera,
-  FaChevronRight
+  FaChevronRight,
+  FaHome,
+  FaSeedling,
+  FaWater,
+  FaShoppingCart
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
@@ -38,6 +42,13 @@ const Profile = () => {
     memberSince: 'January 2026'
   });
 
+  // Navigation functions
+  const goToHome = () => navigate('/');
+  const goToPlanting = () => navigate('/planting');
+  const goToIrrigation = () => navigate('/irrigation');
+  const goToHarvest = () => navigate('/harvest');
+  const goToProfile = () => navigate('/profile');
+
   // FIX: Add state for language display
   const [displayLanguage, setDisplayLanguage] = useState('');
 
@@ -58,10 +69,6 @@ const Profile = () => {
 
   const handleChangePassword = () => {
     alert(t('changePassword'));
-  };
-
-  const goToHome = () => {
-    navigate('/');
   };
 
   // FIX: Simplified language change handler
@@ -92,19 +99,43 @@ const Profile = () => {
               <span className="text-xl font-bold text-[#263238]">{t('agriSmart')}</span>
             </div>
 
-            {/* Navigation */}
+            {/* Navigation - Updated with Planting, Irrigation, Harvesting */}
             <div className="hidden md:flex items-center gap-8">
               <a 
                 href="#" 
                 onClick={(e) => { e.preventDefault(); goToHome(); }}
-                className="text-[#546E7A] hover:text-[#1B5E20] transition-colors"
+                className="text-[#546E7A] hover:text-[#1B5E20] transition-colors flex items-center gap-1"
               >
-                {t('home')}
+                <FaHome /> {t('home')}
               </a>
-              <a href="#" className="text-[#546E7A] hover:text-[#1B5E20] transition-colors">{t('dashboard')}</a>
-              <a href="#" className="text-[#546E7A] hover:text-[#1B5E20] transition-colors">{t('analytics')}</a>
-              <a href="#" className="text-[#546E7A] hover:text-[#1B5E20] transition-colors">{t('market')}</a>
-              <a href="#" className="text-[#263238] font-medium hover:text-[#1B5E20] transition-colors border-b-2 border-[#1B5E20] pb-1">{t('profile')}</a>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); goToPlanting(); }}
+                className="text-[#546E7A] hover:text-[#1B5E20] transition-colors flex items-center gap-1"
+              >
+                <FaSeedling /> {t('plantingInsights')}
+              </a>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); goToIrrigation(); }}
+                className="text-[#546E7A] hover:text-[#1B5E20] transition-colors flex items-center gap-1"
+              >
+                <FaWater /> {t('irrigationControl')}
+              </a>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); goToHarvest(); }}
+                className="text-[#546E7A] hover:text-[#1B5E20] transition-colors flex items-center gap-1"
+              >
+                <FaShoppingCart /> {t('harvestingUpdates')}
+              </a>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); goToProfile(); }}
+                className="text-[#263238] font-medium hover:text-[#1B5E20] transition-colors border-b-2 border-[#1B5E20] pb-1 flex items-center gap-1"
+              >
+                <FaUserCircle /> {t('profile')}
+              </a>
             </div>
 
             {/* Right Icons */}
